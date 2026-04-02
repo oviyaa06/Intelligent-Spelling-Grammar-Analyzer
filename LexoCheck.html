@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LexoCheck — Compiler-Based Spelling Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --surface3: #22222e;
+    --border: #2a2a3a;
+    --border2: #383850;
+    --accent: #7c6bff;
+    --accent2: #a78bff;
+    --accent-glow: rgba(124,107,255,0.15);
+    --green: #22d3a0;
+    --green-bg: rgba(34,211,160,0.08);
+    --red: #ff5f7e;
+    --red-bg: rgba(255,95,126,0.08);
+    --yellow: #fbbf24;
+    --yellow-bg: rgba(251,191,36,0.08);
+    --text: #e8e8f0;
+    --text2: #9090b0;
+    --text3: #5a5a7a;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(124,107,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* HEADER */
+  header {
+    padding: 36px 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 14px;
+    color: #fff;
+    letter-spacing: -0.5px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 60%);
+  }
+
+  .logo-text {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo-text span {
+    color: var(--accent2);
+  }
+
+  .header-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    margin-bottom: 52px;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+    background: var(--accent-glow);
+    border: 1px solid rgba(124,107,255,0.3);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .hero-tag::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(36px, 5vw, 58px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #e8e8f0 30%, #7c6bff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    color: var(--text2);
+    font-size: 16px;
+    max-width: 560px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* PIPELINE VISUAL */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 0 0 52px;
+    overflow-x: auto;
+    padding: 4px 0;
+  }
+
+  .pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 120px;
+    transition: border-color 0.3s, background 0.3s;
+    position: relative;
+  }
+
+  .pipeline-step.active {
+    border-color: var(--accent);
+    background: var(--surface2);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .pipeline-step.done {
+    border-color: var(--green);
+    background: var(--green-bg);
+  }
+
+  .pipeline-step-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .pipeline-step-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+
+  .pipeline-step.active .pipeline-step-label { color: var(--accent2); }
+  .pipeline-step.done .pipeline-step-label { color: var(--green); }
+
+  .pipeline-arrow {
+    width: 32px;
+    height: 2px;
+    background: var(--border2);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .pipeline-arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left: 6px solid var(--border2);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+
+  /* MAIN LAYOUT */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 760px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .panel-body { padding: 18px; }
+
+  /* TEXTAREA */
+  .input-area {
+    width: 100%;
+    min-height: 220px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.8;
+    resize: vertical;
+    placeholder-color: var(--text3);
+  }
+
+  .input-area::placeholder { color: var(--text3); }
+
+  /* FILE UPLOAD */
+  .upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .upload-zone input { display: none; }
+
+  .upload-zone-text {
+    font-size: 13px;
+    color: var(--text3);
+    line-height: 1.6;
+  }
+
+  .upload-zone-text strong { color: var(--accent2); }
+
+  .file-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+    margin-top: 8px;
+  }
+
+  /* ACTIONS */
+  .actions {
+    display: flex;
+    gap: 10px;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 24px var(--accent-glow);
+  }
+
+  .btn-secondary {
+    background: var(--surface3);
+    color: var(--text2);
+    border: 1px solid var(--border2);
+  }
+
+  .btn-secondary:hover {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--border2);
+  }
+
+  .btn:active { transform: scale(0.98); }
+
+  /* OUTPUT PANEL */
+  .output-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  /* TOKENS */
+  .token-stream {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 18px;
+    min-height: 80px;
+    font-family: var(--mono);
+  }
+
+  .token {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 400;
+    border: 1px solid;
+    transition: transform 0.1s;
+    cursor: default;
+  }
+
+  .token:hover { transform: scale(1.05); }
+
+  .token-word { background: rgba(124,107,255,0.1); border-color: rgba(124,107,255,0.3); color: var(--accent2); }
+  .token-number { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: var(--yellow); }
+  .token-punct { background: rgba(144,144,176,0.1); border-color: rgba(144,144,176,0.2); color: var(--text3); }
+  .token-space { background: transparent; border-color: transparent; color: var(--text3); font-size: 11px; padding: 4px 6px; }
+  .token-error { background: var(--red-bg); border-color: rgba(255,95,126,0.4); color: var(--red); }
+
+  /* CORRECTED TEXT */
+  .corrected-text {
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 2;
+    padding: 18px;
+    min-height: 100px;
+    color: var(--text);
+  }
+
+  .word-correct { color: var(--text); }
+  .word-corrected {
+    color: var(--green);
+    background: var(--green-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border-bottom: 2px solid var(--green);
+    cursor: help;
+    position: relative;
+  }
+
+  .word-error {
+    color: var(--red);
+    background: var(--red-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border-bottom: 2px dashed var(--red);
+    cursor: help;
+  }
+
+  /* ISSUES LIST */
+  .issues-list {
+    padding: 12px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .issue-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .issue-spell { background: var(--red-bg); border-color: rgba(255,95,126,0.25); }
+  .issue-grammar { background: var(--yellow-bg); border-color: rgba(251,191,36,0.25); }
+  .issue-info { background: rgba(124,107,255,0.06); border-color: rgba(124,107,255,0.2); }
+
+  .issue-icon {
+    font-size: 16px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .issue-content { flex: 1; }
+
+  .issue-type {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+  }
+
+  .issue-spell .issue-type { color: var(--red); }
+  .issue-grammar .issue-type { color: var(--yellow); }
+  .issue-info .issue-type { color: var(--accent2); }
+
+  .issue-message {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  .issue-message strong { color: var(--text); font-weight: 500; }
+
+  .issue-suggestion {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .issue-spell .issue-suggestion { color: var(--green); }
+  .issue-grammar .issue-suggestion { color: var(--yellow); }
+
+  /* STATS */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text3);
+  }
+
+  .stat-green { color: var(--green); }
+  .stat-red { color: var(--red); }
+  .stat-yellow { color: var(--yellow); }
+  .stat-accent { color: var(--accent2); }
+
+  /* PARSE TREE */
+  .parse-tree {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    padding: 18px;
+    line-height: 2;
+    overflow-x: auto;
+  }
+
+  .tree-node { color: var(--accent2); }
+  .tree-leaf { color: var(--green); }
+  .tree-error { color: var(--red); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    color: var(--text3);
+    text-align: center;
+    gap: 10px;
+  }
+
+  .empty-icon { font-size: 36px; opacity: 0.4; }
+  .empty-text { font-family: var(--mono); font-size: 12px; letter-spacing: 0.5px; }
+
+  /* LOADING */
+  .loading-bar {
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--green));
+    background-size: 200% 100%;
+    animation: shimmer 1s infinite;
+    border-radius: 2px;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* BOTTOM TABS */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 8px 14px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    overflow-x: auto;
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 8px 16px;
+    border-radius: 6px 6px 0 0;
+    color: var(--text3);
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .tab:hover { color: var(--text2); background: var(--surface3); }
+
+  .tab.active {
+    color: var(--accent2);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  .footer-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    line-height: 1.8;
+  }
+
+  .footer-text a { color: var(--accent2); text-decoration: none; }
+
+  /* TOOLTIP */
+  [data-tooltip] { position: relative; }
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3);
+    color: var(--text);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid var(--border2);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+    font-family: var(--mono);
+  }
+
+  [data-tooltip]:hover::after { opacity: 1; }
+
+  /* CHAR COUNT */
+  .char-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  /* Score badge */
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .score-high { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,211,160,0.3); }
+  .score-mid { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+  .score-low { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,95,126,0.3); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">&lt;/&gt;</div>
+      <div class="logo-text">Lexo<span>Check</span></div>
+    </div>
+    <div class="header-badge">Compiler-Based NLP</div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">Lexical Analysis + Parsing</div>
+    <h1>Intelligent Spelling<br>&amp; Grammar Analyzer</h1>
+    <p>A compiler-inspired pipeline: tokenization → lexical analysis → spelling validation → grammar parsing → structured output.</p>
+  </div>
+
+  <!-- PIPELINE VISUAL -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipeline-step" id="step-input">
+      <span class="pipeline-step-icon">⌨️</span>
+      <span class="pipeline-step-label">Input</span>
+    </div>
+    <div class="pipeline-arrow"></div>
+    <div class="pipeline-step" id="step-tokenize">
+      <span class="pipeline-step-icon">🔤</span>
+      <span class="pipeline-step-label">Tokenizer</span>
+    </div>
+    <div class="pipeline-arrow"></div>
+    <div class="pipeline-step" id="step-lexical">
+      <span class="pipeline-step-icon">📖</span>
+      <span class="pipeline-step-label">Lexical Analysis</span>
+    </div>
+    <div class="pipeline-arrow"></div>
+    <div class="pipeline-step" id="step-spell">
+      <span class="pipeline-step-icon">✏️</span>
+      <span class="pipeline-step-label">Spell Check</span>
+    </div>
+    <div class="pipeline-arrow"></div>
+    <div class="pipeline-step" id="step-grammar">
+      <span class="pipeline-step-icon">🧠</span>
+      <span class="pipeline-step-label">Grammar Parser</span>
+    </div>
+    <div class="pipeline-arrow"></div>
+    <div class="pipeline-step" id="step-output">
+      <span class="pipeline-step-icon">📊</span>
+      <span class="pipeline-step-label">Output</span>
+    </div>
+  </div>
+
+  <!-- MAIN INPUT/OUTPUT GRID -->
+  <div class="main-grid">
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-dot" style="background:var(--accent)"></span>
+          Input Text
+        </div>
+        <span class="char-count" id="char-count">0 chars</span>
+      </div>
+      <div class="panel-body">
+        <textarea
+          class="input-area"
+          id="input-text"
+          placeholder="Type or paste your text here...&#10;&#10;Exampl: Ths is a smple txt with som speling erors and grammer mistaks."
+          spellcheck="false"
+        ></textarea>
+
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept=".txt,.md,.html,.csv" onchange="handleFileUpload(event)">
+          <div class="upload-zone-text">
+            <strong>Upload a file</strong> or drag &amp; drop<br>
+            .txt, .md, .html files supported
+          </div>
+          <div class="file-name" id="file-name"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="analyze()">▶ Analyze</button>
+        <button class="btn btn-secondary" onclick="loadSample()">Load Sample</button>
+        <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+      </div>
+    </div>
+
+    <!-- TOKENS PANEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-dot" style="background:var(--yellow)"></span>
+          Token Stream
+        </div>
+        <span class="char-count" id="token-count">—</span>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div id="loading-bar" style="display:none;padding:0 18px;padding-top:8px;">
+          <div class="loading-bar"></div>
+        </div>
+        <div class="token-stream" id="token-stream">
+          <div class="empty-state">
+            <div class="empty-icon">◈</div>
+            <div class="empty-text">Tokens will appear here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT PANEL WITH TABS -->
+  <div class="output-panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="panel-title-dot" style="background:var(--green)"></span>
+        Analysis Results
+      </div>
+      <div id="score-display"></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('corrected')">Corrected Text</div>
+      <div class="tab" onclick="switchTab('issues')">Issues <span id="issue-badge"></span></div>
+      <div class="tab" onclick="switchTab('stats')">Statistics</div>
+    </div>
+
+    <div class="tab-content active" id="tab-corrected">
+      <div class="corrected-text" id="corrected-output">
+        <div class="empty-state">
+          <div class="empty-icon">📝</div>
+          <div class="empty-text">Corrected output will appear here</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-issues">
+      <div class="issues-list" id="issues-list">
+        <div class="empty-state">
+          <div class="empty-icon">✅</div>
+          <div class="empty-text">No issues detected yet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-stats">
+      <div class="stats-row" id="stats-row">
+        <div class="empty-state" style="grid-column:1/-1;">
+          <div class="empty-icon">📊</div>
+          <div class="empty-text">Run analysis to see statistics</div>
+        </div>
+      </div>
+    </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-text">
+      LexoCheck — Compiler-Based English Spelling &amp; Grammar Analyzer<br>
+      Built with Lexical Analysis · Tokenization · Rule-Based Parsing<br>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ===================================================
+//   LEXOCHECK — COMPILER-BASED SPELLING ENGINE
+// ===================================================
+
+// ---- TOKEN TYPES (like a real lexer) ----
+const TOKEN = {
+  WORD: 'WORD',
+  NUMBER: 'NUMBER',
+  PUNCTUATION: 'PUNCTUATION',
+  WHITESPACE: 'WHITESPACE',
+  NEWLINE: 'NEWLINE',
+  EOF: 'EOF'
+};
+
+// ---- LEXER (Tokenizer Phase) ----
+function tokenize(input) {
+  const tokens = [];
+  let i = 0;
+  while (i < input.length) {
+    const ch = input[i];
+    if (/[a-zA-Z']/.test(ch)) {
+      let word = '';
+      while (i < input.length && /[a-zA-Z']/.test(input[i])) {
+        word += input[i++];
+      }
+      tokens.push({ type: TOKEN.WORD, value: word, position: i - word.length });
+    } else if (/[0-9]/.test(ch)) {
+      let num = '';
+      while (i < input.length && /[0-9.,]/.test(input[i])) {
+        num += input[i++];
+      }
+      tokens.push({ type: TOKEN.NUMBER, value: num, position: i - num.length });
+    } else if (/[.,!?;:"()\-\[\]{}<>\/\\@#$%^&*+=|~`]/.test(ch)) {
+      tokens.push({ type: TOKEN.PUNCTUATION, value: ch, position: i });
+      i++;
+    } else if (ch === '\n') {
+      tokens.push({ type: TOKEN.NEWLINE, value: '\n', position: i });
+      i++;
+    } else if (/\s/.test(ch)) {
+      let sp = '';
+      while (i < input.length && /[^\S\n]/.test(input[i])) sp += input[i++];
+      tokens.push({ type: TOKEN.WHITESPACE, value: sp, position: i - sp.length });
+    } else {
+      i++;
+    }
+  }
+  tokens.push({ type: TOKEN.EOF, value: '', position: input.length });
+  return tokens;
+}
+
+// ---- DICTIONARY (English common words) ----
+const DICTIONARY = new Set([
+  'a','an','the','is','are','was','were','be','been','being','have','has','had','do','does','did',
+  'will','would','could','should','may','might','shall','must','can','need','dare','used',
+  'i','me','my','myself','we','our','ours','ourselves','you','your','yours','yourself','yourselves',
+  'he','him','his','himself','she','her','hers','herself','it','its','itself',
+  'they','them','their','theirs','themselves','what','which','who','whom','this','that','these','those',
+  'and','but','or','nor','for','yet','so','although','because','since','unless','until','while',
+  'of','at','by','for','with','about','against','between','into','through','during','before','after',
+  'above','below','to','from','up','down','in','out','on','off','over','under','again','further',
+  'then','once','here','there','when','where','why','how','all','both','each','few','more','most',
+  'other','some','such','no','not','only','own','same','than','too','very','s','t','just','don',
+  'now','ll','m','o','re','ve','y','ain','aren','couldn','didn','doesn','hadn','hasn','haven',
+  'isn','ma','mightn','mustn','needn','shan','shouldn','wasn','weren','won','wouldn',
+  'hello','world','good','great','happy','sad','nice','bad','new','old','big','small','large',
+  'long','short','high','low','many','much','few','little','first','last','next','previous',
+  'name','time','year','people','way','day','man','woman','child','life','world','place',
+  'case','week','company','system','part','service','city','number','program',
+  'information','word','example','problem','question','idea','fact','result','point',
+  'text','line','letter','sentence','paragraph','document','file','page','book','story',
+  'spelling','grammar','correct','incorrect','error','mistake','word','check','analyzer',
+  'compiler','lexer','parser','token','language','english','test','sample','input','output',
+  'please','thank','thanks','sorry','yes','no','ok','okay','well','also','just','even','still',
+  'already','always','never','often','sometimes','usually','really','very','quite','rather',
+  'however','therefore','moreover','furthermore','although','though','even','whether',
+  'make','made','making','take','taken','taking','give','given','giving','go','gone','going',
+  'come','came','coming','see','seen','seeing','know','knew','known','think','thought','thinking',
+  'look','looked','looking','use','used','using','find','found','finding','tell','told','telling',
+  'ask','asked','asking','seem','seemed','seeming','feel','felt','feeling','try','tried','trying',
+  'leave','left','leaving','call','called','calling','keep','kept','keeping','let','letting',
+  'begin','began','begun','show','showed','shown','hear','heard','hearing','play','played','playing',
+  'run','ran','running','move','moved','moving','live','lived','living','believe','believed',
+  'hold','held','holding','bring','brought','bringing','happen','happened','write','wrote','written',
+  'provide','provided','providing','sit','sat','sitting','stand','stood','standing','lose','lost',
+  'pay','paid','paying','meet','met','meeting','include','included','including','continue',
+  'learn','learned','change','changed','lead','led','understand','understood','watch','watched',
+  'follow','followed','stop','stopped','create','created','speak','spoke','spoken','read','reading',
+  'spend','spent','grow','grew','grown','open','opened','walk','walked','win','won','offer',
+  'remember','love','consider','appear','buy','wait','serve','die','send','expect','build','stay',
+  'fall','cut','reach','kill','remain','suggest','raise','pass','sell','require','report','decide',
+  'begin','able','accept','across','action','actually','add','addition','address','admit',
+  'advance','advantage','affect','agency','ago','agree','ahead','allow','already','among',
+  'amount','another','answer','anything','appear','apply','approach','appropriate',
+  'approve','area','argue','around','article','attention','available','away','back',
+  'basic','basis','board','body','break','business','care','carry','cause','center',
+  'certain','certainly','chance','character','charge','choice','choose','chosen','clear',
+  'close','complete','concern','condition','conference','consider','control','cost','cover',
+  'cut','deal','decide','describe','detail','develop','development','difference','direction',
+  'discuss','discussion','draw','early','easy','economic','economy','education','effect',
+  'effort','energy','enough','entire','environment','especially','establish','event','every',
+  'evidence','example','experience','explain','face','factor','final','financial','force',
+  'form','free','full','government','group','grow','growth','hand','health','help','history',
+  'home','hope','house','human','increase','industry','instead','interest','issue','itself',
+  'join','kind','knowledge','late','later','law','lead','level','light','likely','major',
+  'market','matter','measure','model','moment','money','national','natural','near','nearly',
+  'necessary','official','often','others','outside','particularly','pattern','percent',
+  'personal','plan','political','position','possible','power','pressure','process','produce',
+  'project','property','public','purpose','quality','rate','reason','recent','recognize',
+  'reduce','relationship','research','resource','response','responsibility','rise','role',
+  'rule','school','sense','set','significant','similar','simple','social','society','sort',
+  'specific','standard','state','stay','strong','structure','student','study','success',
+  'support','term','theory','thing','throughout','total','traditional','true','truth',
+  'turn','type','understand','value','view','voice','vote','whether','whole','within',
+  'without','personal','professor','university','science','technology','physics','chemistry',
+  'mathematics','biology','history','geography','literature','computer','internet','software',
+  'hardware','network','database','algorithm','function','variable','class','object',
+  'method','string','integer','boolean','array','list','dictionary','set','tuple',
+  'python','java','javascript','html','css','react','angular','vue','node','server',
+  'client','request','response','api','json','xml','sql','mysql','postgresql','mongodb',
+  'today','yesterday','tomorrow','morning','afternoon','evening','night','week','month',
+  'january','february','march','april','may','june','july','august','september','october',
+  'november','december','monday','tuesday','wednesday','thursday','friday','saturday','sunday',
+  'color','colour','neighbor','neighbour','analyze','analyse','organize','organise',
+  'the', 'of', 'and', 'to', 'in', 'that', 'for', 'it', 'with', 'as', 'be', 'at',
+  'by', 'this', 'from', 'or', 'an', 'but', 'not', 'are'
+]);
+
+// ---- EDIT DISTANCE (Levenshtein) ----
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m + 1}, (_, i) =>
+    Array.from({length: n + 1}, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1];
+      else dp[i][j] = 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// ---- SPELL CHECKER (Lexical Analysis Phase) ----
+function spellCheck(word) {
+  const lower = word.toLowerCase().replace(/'/g, '');
+  if (DICTIONARY.has(lower) || DICTIONARY.has(lower.replace(/s$/, '')) ||
+      DICTIONARY.has(lower.replace(/ed$/, '')) || DICTIONARY.has(lower.replace(/ing$/, '')) ||
+      DICTIONARY.has(lower.replace(/ly$/, '')) || DICTIONARY.has(lower.replace(/er$/, '')) ||
+      lower.length <= 2) {
+    return { correct: true, suggestions: [] };
+  }
+  // Find suggestions via edit distance
+  const candidates = [];
+  for (const dictWord of DICTIONARY) {
+    if (Math.abs(dictWord.length - lower.length) <= 3) {
+      const dist = editDistance(lower, dictWord);
+      if (dist <= 2) candidates.push({ word: dictWord, dist });
+    }
+  }
+  candidates.sort((a, b) => a.dist - b.dist);
+  return {
+    correct: false,
+    suggestions: candidates.slice(0, 3).map(c => c.word)
+  };
+}
+
+// ---- GRAMMAR RULES (Parser Phase) ----
+const GRAMMAR_RULES = [
+  {
+    name: 'double_space',
+    pattern: /\s{2,}/g,
+    message: 'Multiple consecutive spaces detected.',
+    suggestion: 'Use a single space between words.',
+    type: 'grammar'
+  },
+  {
+    name: 'missing_space_after_punct',
+    check: (tokens) => {
+      const issues = [];
+      for (let i = 0; i < tokens.length - 1; i++) {
+        if (tokens[i].type === TOKEN.PUNCTUATION &&
+            ['.', ',', '!', '?', ';', ':'].includes(tokens[i].value) &&
+            tokens[i+1].type === TOKEN.WORD) {
+          issues.push({
+            message: `Missing space after "<strong>${tokens[i].value}</strong>"`,
+            suggestion: `Add a space after "${tokens[i].value}"`,
+            type: 'grammar'
+          });
+        }
+      }
+      return issues;
+    }
+  },
+  {
+    name: 'sentence_case',
+    check: (tokens) => {
+      const issues = [];
+      let startOfSentence = true;
+      for (const tok of tokens) {
+        if (tok.type === TOKEN.WORD) {
+          if (startOfSentence && tok.value[0] !== tok.value[0].toUpperCase() && tok.value.length > 1) {
+            issues.push({
+              message: `Sentence should start with a capital letter: "<strong>${tok.value}</strong>"`,
+              suggestion: `Capitalize to "${tok.value[0].toUpperCase() + tok.value.slice(1)}"`,
+              type: 'grammar'
+            });
+          }
+          startOfSentence = false;
+        }
+        if (tok.type === TOKEN.PUNCTUATION && ['.', '!', '?'].includes(tok.value)) {
+          startOfSentence = true;
+        }
+        if (tok.type === TOKEN.NEWLINE) startOfSentence = true;
+      }
+      return issues;
+    }
+  },
+  {
+    name: 'repeated_word',
+    check: (tokens) => {
+      const issues = [];
+      const words = tokens.filter(t => t.type === TOKEN.WORD);
+      for (let i = 1; i < words.length; i++) {
+        if (words[i].value.toLowerCase() === words[i-1].value.toLowerCase()) {
+          issues.push({
+            message: `Repeated word: "<strong>${words[i].value}</strong>"`,
+            suggestion: `Remove one instance of "${words[i].value}"`,
+            type: 'grammar'
+          });
+        }
+      }
+      return issues;
+    }
+  },
+  {
+    name: 'common_confusables',
+    check: (tokens) => {
+      const confusables = {
+        'their': 'Check: "their" (possessive) vs "there" (place) vs "they\'re" (contraction)',
+        'its': 'Check: "its" (possessive) vs "it\'s" (it is)',
+        'your': 'Check: "your" (possessive) vs "you\'re" (you are)',
+        'than': 'Check: "than" (comparison) vs "then" (time)',
+        'affect': 'Check: "affect" (verb) vs "effect" (noun)',
+        'loose': 'Check: "loose" (not tight) vs "lose" (to fail to win)',
+        'there': 'Note: "there" (place) vs "their" (possessive) vs "they\'re"',
+        'to': 'Note: "to" (preposition) vs "too" (also) vs "two" (number)',
+      };
+      const issues = [];
+      for (const tok of tokens) {
+        if (tok.type === TOKEN.WORD && confusables[tok.value.toLowerCase()]) {
+          issues.push({
+            message: confusables[tok.value.toLowerCase()],
+            suggestion: 'Verify correct word choice in context.',
+            type: 'info'
+          });
+        }
+      }
+      return issues;
+    }
+  }
+];
+
+// ---- MAIN ANALYSIS ENGINE ----
+function analyze() {
+  const text = document.getElementById('input-text').value;
+  if (!text.trim()) {
+    alert('Please enter some text to analyze.');
+    return;
+  }
+
+  // Animate pipeline
+  animatePipeline();
+
+  const tokens = tokenize(text);
+  const wordTokens = tokens.filter(t => t.type === TOKEN.WORD);
+
+  // Show tokens
+  renderTokens(tokens);
+
+  // Spell check all words
+  const spellResults = {};
+  for (const tok of wordTokens) {
+    spellResults[tok.value] = spellCheck(tok.value);
+  }
+
+  // Collect issues
+  const issues = [];
+
+  // Spelling issues
+  for (const tok of wordTokens) {
+    const result = spellResults[tok.value];
+    if (!result.correct) {
+      issues.push({
+        type: 'spell',
+        message: `Misspelled word: "<strong>${tok.value}</strong>"`,
+        suggestion: result.suggestions.length > 0
+          ? `Did you mean: ${result.suggestions.slice(0,3).map(s=>`"${s}"`).join(', ')}?`
+          : 'No suggestions found.',
+        original: tok.value,
+        correction: result.suggestions[0] || tok.value
+      });
+    }
+  }
+
+  // Grammar issues
+  for (const rule of GRAMMAR_RULES) {
+    if (rule.check) {
+      const found = rule.check(tokens);
+      issues.push(...found.map(i => ({ ...i })));
+    }
+  }
+
+  // Build corrected text
+  let correctedHTML = '';
+  for (const tok of tokens) {
+    if (tok.type === TOKEN.WORD) {
+      const result = spellResults[tok.value];
+      if (!result.correct && result.suggestions.length > 0) {
+        correctedHTML += `<span class="word-corrected" data-tooltip="Was: ${tok.value}">${result.suggestions[0]}</span>`;
+      } else if (!result.correct) {
+        correctedHTML += `<span class="word-error" data-tooltip="Possible error">${tok.value}</span>`;
+      } else {
+        correctedHTML += `<span class="word-correct">${tok.value}</span>`;
+      }
+    } else if (tok.type === TOKEN.NEWLINE) {
+      correctedHTML += '<br>';
+    } else if (tok.type !== TOKEN.EOF) {
+      correctedHTML += tok.value;
+    }
+  }
+
+  // Stats
+  const totalWords = wordTokens.length;
+  const misspelled = wordTokens.filter(t => !spellResults[t.value].correct).length;
+  const sentences = tokens.filter(t =>
+    t.type === TOKEN.PUNCTUATION && ['.','!','?'].includes(t.value)
+  ).length || 1;
+  const score = Math.round(Math.max(0, 100 - (misspelled / Math.max(totalWords, 1)) * 100));
+
+  // Render outputs
+  renderCorrected(correctedHTML);
+  renderIssues(issues);
+  renderStats({ totalWords, misspelled, sentences, score, tokens });
+  renderScore(score);
+}
+
+function animatePipeline() {
+  const steps = ['step-input','step-tokenize','step-lexical','step-spell','step-grammar','step-output'];
+  steps.forEach(id => {
+    document.getElementById(id).classList.remove('active','done');
+  });
+
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i > 0) document.getElementById(steps[i-1]).classList.replace('active','done');
+    if (i < steps.length) {
+      document.getElementById(steps[i]).classList.add('active');
+      i++;
+    } else {
+      clearInterval(interval);
+    }
+  }, 220);
+
+  document.getElementById('loading-bar').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('loading-bar').style.display = 'none';
+  }, 1400);
+}
+
+function renderTokens(tokens) {
+  const container = document.getElementById('token-stream');
+  const visible = tokens.filter(t => t.type !== TOKEN.EOF).slice(0, 120);
+  let html = '';
+  for (const tok of visible) {
+    let cls = '';
+    if (tok.type === TOKEN.WORD) {
+      const res = spellCheck(tok.value);
+      cls = res.correct ? 'token token-word' : 'token token-error';
+    } else if (tok.type === TOKEN.NUMBER) cls = 'token token-number';
+    else if (tok.type === TOKEN.PUNCTUATION) cls = 'token token-punct';
+    else if (tok.type === TOKEN.WHITESPACE) cls = 'token token-space';
+    else if (tok.type === TOKEN.NEWLINE) cls = 'token token-space';
+    else continue;
+
+    const display = tok.type === TOKEN.WHITESPACE ? '·' :
+                    tok.type === TOKEN.NEWLINE ? '↵' : tok.value;
+    html += `<span class="${cls}" title="${tok.type}">${escapeHtml(display)}</span>`;
+  }
+  container.innerHTML = html;
+  const wordCount = tokens.filter(t => t.type === TOKEN.WORD).length;
+  document.getElementById('token-count').textContent = `${tokens.length - 1} tokens`;
+}
+
+function renderCorrected(html) {
+  document.getElementById('corrected-output').innerHTML = html || '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">No output</div></div>';
+}
+
+function renderIssues(issues) {
+  const container = document.getElementById('issues-list');
+  if (issues.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">No issues found — text looks great!</div></div>';
+    document.getElementById('issue-badge').textContent = '';
+    return;
+  }
+  document.getElementById('issue-badge').textContent = `(${issues.length})`;
+  container.innerHTML = issues.map(issue => `
+    <div class="issue-item issue-${issue.type === 'spell' ? 'spell' : issue.type === 'grammar' ? 'grammar' : 'info'}">
+      <div class="issue-icon">${issue.type === 'spell' ? '✗' : issue.type === 'grammar' ? '⚠' : 'ℹ'}</div>
+      <div class="issue-content">
+        <div class="issue-type">${issue.type === 'spell' ? 'Spelling Error' : issue.type === 'grammar' ? 'Grammar Warning' : 'Style Note'}</div>
+        <div class="issue-message">${issue.message}</div>
+        ${issue.suggestion ? `<div class="issue-suggestion">→ ${issue.suggestion}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderStats({ totalWords, misspelled, sentences, score, tokens }) {
+  const container = document.getElementById('stats-row');
+  const correct = totalWords - misspelled;
+  const accuracy = totalWords > 0 ? Math.round((correct / totalWords) * 100) : 100;
+  const punct = tokens.filter(t => t.type === TOKEN.PUNCTUATION).length;
+
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value stat-accent">${totalWords}</div>
+      <div class="stat-label">Total Words</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-green">${correct}</div>
+      <div class="stat-label">Correct Words</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-red">${misspelled}</div>
+      <div class="stat-label">Misspelled</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-yellow">${sentences}</div>
+      <div class="stat-label">Sentences</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value ${accuracy >= 80 ? 'stat-green' : accuracy >= 60 ? 'stat-yellow' : 'stat-red'}">${accuracy}%</div>
+      <div class="stat-label">Accuracy</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-accent">${punct}</div>
+      <div class="stat-label">Punctuation</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-accent">${tokens.length - 1}</div>
+      <div class="stat-label">Total Tokens</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value ${score >= 80 ? 'stat-green' : score >= 60 ? 'stat-yellow' : 'stat-red'}">${score}</div>
+      <div class="stat-label">Quality Score</div>
+    </div>
+  `;
+}
+
+function renderScore(score) {
+  const el = document.getElementById('score-display');
+  const cls = score >= 80 ? 'score-high' : score >= 60 ? 'score-mid' : 'score-low';
+  el.innerHTML = `<span class="score-badge ${cls}">● Score: ${score}/100</span>`;
+}
+
+// ---- UTILS ----
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['corrected','issues','stats','tree'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === 'tab-' + name);
+  });
+}
+
+function clearAll() {
+  document.getElementById('input-text').value = '';
+  document.getElementById('char-count').textContent = '0 chars';
+  document.getElementById('token-stream').innerHTML = '<div class="empty-state"><div class="empty-icon">◈</div><div class="empty-text">Tokens will appear here</div></div>';
+  document.getElementById('corrected-output').innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">Corrected output will appear here</div></div>';
+  document.getElementById('issues-list').innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">No issues detected yet</div></div>';
+  document.getElementById('stats-row').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">📊</div><div class="empty-text">Run analysis to see statistics</div></div>';
+  document.getElementById('parse-tree').innerHTML = '<div class="empty-state"><div class="empty-icon">🌲</div><div class="empty-text">Parse tree will appear here</div></div>';
+  document.getElementById('score-display').innerHTML = '';
+  document.getElementById('file-name').textContent = '';
+  document.getElementById('issue-badge').textContent = '';
+  ['step-input','step-tokenize','step-lexical','step-spell','step-grammar','step-output'].forEach(id =>
+    document.getElementById(id).classList.remove('active','done')
+  );
+}
+
+function loadSample() {
+  document.getElementById('input-text').value =
+    `This is a smple sentense with som speling erors. The quikc brwon fox jumpd ovr the lasy dog.\n\nI recieve many opportunites to lern form my msitakes.Their are alot of things I should of done diffrently.\n\nTh companey's prodcut is awsme and recievd positiv reveiws from many custmers worldwid.`;
+  document.getElementById('char-count').textContent = document.getElementById('input-text').value.length + ' chars';
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('input-text').value = e.target.result.slice(0, 5000);
+    document.getElementById('file-name').textContent = '✓ ' + file.name;
+    document.getElementById('char-count').textContent = document.getElementById('input-text').value.length + ' chars';
+  };
+  reader.readAsText(file);
+}
+
+// Drag & drop
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('input-text').value = ev.target.result.slice(0, 5000);
+      document.getElementById('file-name').textContent = '✓ ' + file.name;
+      document.getElementById('char-count').textContent = document.getElementById('input-text').value.length + ' chars';
+    };
+    reader.readAsText(file);
+  }
+});
+
+// Char count
+document.getElementById('input-text').addEventListener('input', function() {
+  document.getElementById('char-count').textContent = this.value.length + ' chars';
+});
+
+// Enter key shortcut
+document.getElementById('input-text').addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'Enter') analyze();
+});
+</script>
+</body>
+</html>
